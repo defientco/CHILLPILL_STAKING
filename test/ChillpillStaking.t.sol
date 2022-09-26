@@ -90,6 +90,14 @@ contract ContractTest is Test {
         );
     }
 
+    function testCan_dailyStakeRate() public {
+        assertEq(cps.dailyStakeRate(), 8080000000000000000);
+    }
+
+    function testCan_secondStakeRate() public {
+        assertEq(cps.secondStakeRate(), cps.dailyStakeRate() / 1 days);
+    }
+
     function testCan_earnHalfDayRate() public {
         erc721.mint();
         uint256[] memory tokensToStake = new uint256[](1);
