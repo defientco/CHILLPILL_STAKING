@@ -17,6 +17,7 @@ contract ContractTest is Test {
         assertEq(ct.totalSupply(), 0);
         assertEq(ct.name(), "CHILL");
         assertEq(ct.symbol(), "CHILL");
+        assertEq(ct.minter(), minter);
     }
 
     function testCan_mintNewTokens() public {

@@ -20,7 +20,7 @@ contract ChillPill is ERC721 {
 contract ContractTest is Test {
     ChillpillStaking cps;
     ChillPill erc721;
-    ERC20 erc20;
+    ChillToken ct;
     uint256 vaultDuration = 100;
     uint256 totalSupply = 100;
     address owner = address(this);
@@ -28,23 +28,19 @@ contract ContractTest is Test {
 
     function setUp() public {
         erc721 = new ChillPill();
-        erc20 = new ERC20("CHILLPILL", "CHILL");
-        cps = new ChillpillStaking(
-            address(erc721),
-            address(erc20),
-            vaultDuration,
-            totalSupply
-        );
+        cps = new ChillpillStaking(address(erc721), vaultDuration, totalSupply);
+        ct = cps.chillToken();
     }
 
     function testCan_initVariables() public {
         assertEq(cps.totalStaked(), 0);
         assertEq(cps.nftAddress(), address(erc721));
-        assertEq(cps.erc20Address(), address(erc20));
+        assertEq(address(cps.chillToken()), address(ct));
         assertEq(cps.vaultStart(), block.timestamp);
         assertEq(cps.vaultEnd(), block.timestamp + (vaultDuration * 1 days));
         assertEq(cps.totalClaimed(), 0);
         assertEq(cps.totalNftSupply(), totalSupply);
+        assertEq(cps.maxSupply(), 8080000000000000000000000);
     }
 
     function testCan_haveVaultBalanceOfZero() public {
@@ -89,6 +85,9 @@ contract ContractTest is Test {
         tokensToStake[0] = 1;
         cps.stake(tokensToStake);
         vm.warp(block.timestamp + ONE_DAY);
-        assertEq(cps.earningInfo(address(this), tokensToStake), 808);
+        assertEq(
+            cps.earningInfo(address(this), tokensToStake),
+            cps.dailyStakeRate()
+        );
     }
 }

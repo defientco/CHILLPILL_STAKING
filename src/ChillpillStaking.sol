@@ -14,13 +14,18 @@ pragma solidity ^0.8.15;
 
 /// ============ Imports ============
 
-import "openzeppelin-contracts/token/ERC20/ERC20.sol";
+import "./ChillToken.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract ChillpillStaking is ERC20, ReentrancyGuard, IERC721Receiver {
+contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
+    /// @notice total count of staked chillpill nfts
     uint256 public totalStaked;
+    /// @notice $CHILL Token
+    ChillToken public immutable chillToken;
+    /// @notice max supply of $CHILL token
+    uint256 public immutable maxSupply = 8080000000000000000000000;
 
     // struct to store a stake's token, owner, and earning values
     struct Stake {
@@ -34,7 +39,6 @@ contract ChillpillStaking is ERC20, ReentrancyGuard, IERC721Receiver {
     event Claimed(address owner, uint256 amount);
 
     address public nftAddress;
-    address public erc20Address;
     uint256 public vaultStart;
     uint256 public vaultEnd;
     uint256 public totalClaimed;
@@ -45,15 +49,14 @@ contract ChillpillStaking is ERC20, ReentrancyGuard, IERC721Receiver {
 
     constructor(
         address _nft,
-        address _token,
         uint256 _vaultDuration,
-        uint256 _totalSupply
-    ) ERC20("CHILL", "CHILL") {
+        uint256 _totalNftSupply
+    ) {
+        chillToken = new ChillToken(address(this));
         nftAddress = _nft;
-        erc20Address = _token;
         vaultStart = block.timestamp;
         vaultEnd = vaultStart + (_vaultDuration * 1 days);
-        totalNftSupply = _totalSupply;
+        totalNftSupply = _totalNftSupply;
     }
 
     function stake(uint256[] calldata tokenIds) external nonReentrant {
@@ -140,7 +143,7 @@ contract ChillpillStaking is ERC20, ReentrancyGuard, IERC721Receiver {
             });
         }
         if (earned > 0) {
-            IERC20(erc20Address).transfer(account, earned);
+            chillToken.mint(account, earned);
             totalClaimed += earned;
         }
         if (_unstake) {
@@ -149,17 +152,17 @@ contract ChillpillStaking is ERC20, ReentrancyGuard, IERC721Receiver {
         emit Claimed(account, earned);
     }
 
+    /// @notice returns amount of $CHILL earned by staking 1 pill for 1 day
+    function dailyStakeRate() public pure returns (uint256) {
+        return 8080000000000000000;
+    }
+
     function calculateEarn(uint256 stakedAt) internal view returns (uint256) {
-        uint256 vaultBalance = IERC20(erc20Address).balanceOf(address(this));
-        uint256 totalFunding = vaultBalance + totalClaimed;
+        uint256 stakeDuration = block.timestamp - stakedAt;
+        uint256 stakeDays = stakeDuration / 1 days;
+        uint256 payout = stakeDays * dailyStakeRate();
 
-        uint256 vaultDuration = vaultEnd - vaultStart;
-        uint256 vaultDays = vaultDuration / 1 days;
-
-        uint256 payout = totalFunding / totalNftSupply / vaultDays;
-        uint256 stakeDuration = min(block.timestamp, vaultEnd) - stakedAt;
-
-        return (payout * stakeDuration) / 1 days;
+        return payout;
     }
 
     function earningInfo(address account, uint256[] calldata tokenIds)
