@@ -14,13 +14,12 @@ pragma solidity ^0.8.15;
 
 /// ============ Imports ============
 
-import "openzeppelin-contracts/access/Ownable.sol";
-import "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract ChillpillStaking is Ownable, ReentrancyGuard, IERC721Receiver {
+contract ChillpillStaking is ERC20, ReentrancyGuard, IERC721Receiver {
     uint256 public totalStaked;
 
     // struct to store a stake's token, owner, and earning values
@@ -39,46 +38,39 @@ contract ChillpillStaking is Ownable, ReentrancyGuard, IERC721Receiver {
     uint256 public vaultStart;
     uint256 public vaultEnd;
     uint256 public totalClaimed;
-    uint256 public totalSupply;
+    uint256 public totalNftSupply;
 
     // maps tokenId to stake
     mapping(uint256 => Stake) public vault;
 
     constructor(
-        address _owner,
         address _nft,
         address _token,
         uint256 _vaultDuration,
         uint256 _totalSupply
-    ) {
-        _transferOwnership(_owner);
+    ) ERC20("CHILL", "CHILL") {
         nftAddress = _nft;
         erc20Address = _token;
         vaultStart = block.timestamp;
         vaultEnd = vaultStart + (_vaultDuration * 1 days);
-        totalSupply = _totalSupply;
+        totalNftSupply = _totalSupply;
     }
 
     function stake(uint256[] calldata tokenIds) external nonReentrant {
         uint256 tokenId;
         totalStaked += tokenIds.length;
+        IERC721 _nft = IERC721(nftAddress);
         for (uint256 i; i != tokenIds.length; i++) {
             tokenId = tokenIds[i];
             require(vault[tokenId].owner == address(0), "already staked");
+            require(_nft.ownerOf(tokenId) == msg.sender, "not your token");
             require(
-                IERC721(nftAddress).ownerOf(tokenId) == msg.sender,
-                "not your token"
-            );
-            require(
-                IERC721(nftAddress).getApproved(tokenId) == address(this),
+                _nft.isApprovedForAll(msg.sender, address(this)) ||
+                    _nft.getApproved(tokenId) == address(this),
                 "not approved for transfer"
             );
 
-            IERC721(nftAddress).safeTransferFrom(
-                msg.sender,
-                address(this),
-                tokenId
-            );
+            _nft.safeTransferFrom(msg.sender, address(this), tokenId);
             emit NFTStaked(msg.sender, tokenId, block.timestamp);
 
             vault[tokenId] = Stake({
@@ -164,7 +156,7 @@ contract ChillpillStaking is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 vaultDuration = vaultEnd - vaultStart;
         uint256 vaultDays = vaultDuration / 1 days;
 
-        uint256 payout = totalFunding / totalSupply / vaultDays;
+        uint256 payout = totalFunding / totalNftSupply / vaultDays;
         uint256 stakeDuration = min(block.timestamp, vaultEnd) - stakedAt;
 
         return (payout * stakeDuration) / 1 days;
@@ -189,10 +181,10 @@ contract ChillpillStaking is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     // get number of tokens staked in account
-    function balanceOf(address account) external view returns (uint256) {
+    function stakedBalanceOf(address account) external view returns (uint256) {
         uint256 balance = 0;
 
-        for (uint256 i = 0; i <= totalSupply; i++) {
+        for (uint256 i = 0; i <= totalNftSupply; i++) {
             if (vault[i].owner == account) {
                 balance++;
             }
@@ -206,10 +198,10 @@ contract ChillpillStaking is Ownable, ReentrancyGuard, IERC721Receiver {
         view
         returns (uint256[] memory ownerTokens)
     {
-        uint256[] memory tmp = new uint256[](totalSupply);
+        uint256[] memory tmp = new uint256[](totalNftSupply);
 
         uint256 index = 0;
-        for (uint256 tokenId = 0; tokenId <= totalSupply; tokenId++) {
+        for (uint256 tokenId = 0; tokenId <= totalNftSupply; tokenId++) {
             if (vault[tokenId].owner == account) {
                 tmp[index] = vault[tokenId].tokenId;
                 index++;
@@ -237,10 +229,6 @@ contract ChillpillStaking is Ownable, ReentrancyGuard, IERC721Receiver {
     ) external pure override returns (bytes4) {
         // require(from == address(0x0), "Cannot send nfts to Vault directly");
         return IERC721Receiver.onERC721Received.selector;
-    }
-
-    function withdraw(uint256 amount) external onlyOwner {
-        IERC20(erc20Address).transfer(address(this), amount);
     }
 
     // fallback
