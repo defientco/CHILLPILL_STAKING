@@ -157,10 +157,20 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return 8080000000000000000;
     }
 
+    /// @notice returns amount of $CHILL earned by staking 1 pill for 1 second
+    function secondStakeRate() public pure returns (uint256) {
+        return dailyStakeRate() / 1 days;
+    }
+
     function calculateEarn(uint256 stakedAt) internal view returns (uint256) {
         uint256 stakeDuration = block.timestamp - stakedAt;
-        uint256 stakeDays = stakeDuration / 1 days;
-        uint256 payout = stakeDays * dailyStakeRate();
+        uint256 payout;
+        if (stakeDuration >= 1 days) {
+            uint256 numberOfDaysStaked = stakeDuration / 1 days;
+            payout = numberOfDaysStaked * dailyStakeRate();
+            stakeDuration = stakeDuration - numberOfDaysStaked * 1 days;
+        }
+        payout += (stakeDuration) * secondStakeRate();
 
         return payout;
     }

@@ -24,7 +24,6 @@ contract ContractTest is Test {
     uint256 vaultDuration = 100;
     uint256 totalSupply = 100;
     address owner = address(this);
-    uint256 ONE_DAY = 60 * 60 * 24;
 
     function setUp() public {
         erc721 = new ChillPill();
@@ -84,10 +83,23 @@ contract ContractTest is Test {
         erc721.setApprovalForAll(address(cps), true);
         tokensToStake[0] = 1;
         cps.stake(tokensToStake);
-        vm.warp(block.timestamp + ONE_DAY);
+        vm.warp(block.timestamp + 1 days);
         assertEq(
             cps.earningInfo(address(this), tokensToStake),
             cps.dailyStakeRate()
+        );
+    }
+
+    function testCan_earnHalfDayRate() public {
+        erc721.mint();
+        uint256[] memory tokensToStake = new uint256[](1);
+        erc721.setApprovalForAll(address(cps), true);
+        tokensToStake[0] = 1;
+        cps.stake(tokensToStake);
+        vm.warp(block.timestamp + (1 days / 2));
+        assertEq(
+            cps.earningInfo(address(this), tokensToStake),
+            cps.secondStakeRate() * (1 days / 2)
         );
     }
 }
