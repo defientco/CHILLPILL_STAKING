@@ -39,23 +39,15 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     event Claimed(address owner, uint256 amount);
 
     address public nftAddress;
-    uint256 public vaultStart;
-    uint256 public vaultEnd;
     uint256 public totalClaimed;
     uint256 public totalNftSupply;
 
     // maps tokenId to stake
     mapping(uint256 => Stake) public vault;
 
-    constructor(
-        address _nft,
-        uint256 _vaultDuration,
-        uint256 _totalNftSupply
-    ) {
+    constructor(address _nft, uint256 _totalNftSupply) {
         chillToken = new ChillToken(address(this));
         nftAddress = _nft;
-        vaultStart = block.timestamp;
-        vaultEnd = vaultStart + (_vaultDuration * 1 days);
         totalNftSupply = _totalNftSupply;
     }
 
@@ -79,7 +71,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             vault[tokenId] = Stake({
                 owner: msg.sender,
                 tokenId: uint24(tokenId),
-                timestamp: uint48(min(block.timestamp, vaultEnd))
+                timestamp: uint48(block.timestamp)
             });
         }
     }
@@ -132,7 +124,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             Stake memory staked = vault[tokenId];
             require(staked.owner == account, "not an owner");
             uint256 stakedAt = staked.timestamp;
-            uint256 currentTime = min(block.timestamp, vaultEnd);
+            uint256 currentTime = block.timestamp;
 
             earned += calculateEarn(stakedAt);
 
@@ -220,10 +212,6 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         }
 
         return tokens;
-    }
-
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a >= b ? b : a;
     }
 
     function onERC721Received(

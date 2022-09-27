@@ -21,13 +21,12 @@ contract ContractTest is Test {
     ChillpillStaking cps;
     ChillPill erc721;
     ChillToken ct;
-    uint256 vaultDuration = 100;
     uint256 totalSupply = 9999;
     address owner = address(this);
 
     function setUp() public {
         erc721 = new ChillPill();
-        cps = new ChillpillStaking(address(erc721), vaultDuration, totalSupply);
+        cps = new ChillpillStaking(address(erc721), totalSupply);
         ct = cps.chillToken();
     }
 
@@ -35,8 +34,6 @@ contract ContractTest is Test {
         assertEq(cps.totalStaked(), 0);
         assertEq(cps.nftAddress(), address(erc721));
         assertEq(address(cps.chillToken()), address(ct));
-        assertEq(cps.vaultStart(), block.timestamp);
-        assertEq(cps.vaultEnd(), block.timestamp + (vaultDuration * 1 days));
         assertEq(cps.totalClaimed(), 0);
         assertEq(cps.totalNftSupply(), totalSupply);
         assertEq(cps.maxSupply(), 8080000000000000000000000);
@@ -125,4 +122,39 @@ contract ContractTest is Test {
         assertEq(cps.stakedBalanceOf(address(this)), tokensToStake.length);
         assertEq(cps.tokensOfOwner(address(this)).length, tokensToStake.length);
     }
+
+    function testCan_unstake() public {
+        vm.startPrank(address(1));
+        uint256[] memory tokensToStake = new uint256[](1);
+        tokensToStake[0] = 1;
+        erc721.mint();
+        erc721.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        vm.warp(block.timestamp + 1 days);
+        assertEq(
+            cps.earningInfo(address(1), tokensToStake),
+            cps.secondStakeRate() * 1 days
+        );
+        cps.unstake(tokensToStake);
+        assertEq(ct.balanceOf(address(1)), cps.secondStakeRate() * 1 days);
+        assertEq(cps.stakedBalanceOf(address(1)), 0);
+        assertEq(ct.totalSupply(), cps.secondStakeRate() * 1 days);
+    }
+
+    // function testCan_firstHalvening() public {
+    //     uint256[] memory tokensToStake = new uint256[](9999);
+    //     for (uint256 i = 0; i < tokensToStake.length; i++) {
+    //         erc721.mint();
+    //         tokensToStake[i] = i + 1;
+    //     }
+    //     erc721.setApprovalForAll(address(cps), true);
+    //     cps.stake(tokensToStake);
+    //     // minimum days if all pills staked is 51 days till first halvening
+    //     vm.warp(51 days);
+    //     assertTrue(
+    //         cps.earningInfo(address(this), tokensToStake) > cps.maxSupply() / 2
+    //     );
+    //     cps.unstake(tokensToStake);
+    //     // assertEq(cps.dailyStakeRate(), 8080000000000000000 / 2);
+    // }
 }
