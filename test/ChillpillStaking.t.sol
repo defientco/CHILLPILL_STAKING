@@ -22,7 +22,7 @@ contract ContractTest is Test {
     ChillPill erc721;
     ChillToken ct;
     uint256 vaultDuration = 100;
-    uint256 totalSupply = 100;
+    uint256 totalSupply = 9999;
     address owner = address(this);
 
     function setUp() public {
@@ -112,5 +112,17 @@ contract ContractTest is Test {
             cps.earningInfo(address(this), tokensToStake),
             cps.secondStakeRate() * (1 days / 2)
         );
+    }
+
+    function testCan_stakeAllPills() public {
+        uint256[] memory tokensToStake = new uint256[](9999);
+        for (uint256 i = 0; i < tokensToStake.length; i++) {
+            erc721.mint();
+            tokensToStake[i] = i + 1;
+        }
+        erc721.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        assertEq(cps.stakedBalanceOf(address(this)), tokensToStake.length);
+        assertEq(cps.tokensOfOwner(address(this)).length, tokensToStake.length);
     }
 }

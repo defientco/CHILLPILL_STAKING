@@ -186,7 +186,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return earned;
     }
 
-    // get number of tokens staked in account
+    /// @notice get number of tokens staked in account
     function stakedBalanceOf(address account) external view returns (uint256) {
         uint256 balance = 0;
 
@@ -198,7 +198,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return balance;
     }
 
-    // return nft tokens staked of owner
+    /// @notice return nft tokens staked of owner
     function tokensOfOwner(address account)
         external
         view
