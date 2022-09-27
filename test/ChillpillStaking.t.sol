@@ -86,7 +86,7 @@ contract ContractTest is Test {
         vm.warp(block.timestamp + 1 days);
         assertEq(
             cps.earningInfo(address(this), tokensToStake),
-            cps.dailyStakeRate()
+            8080000003870675200
         );
     }
 
@@ -95,7 +95,10 @@ contract ContractTest is Test {
     }
 
     function testCan_secondStakeRate() public {
-        assertEq(cps.secondStakeRate(), cps.dailyStakeRate() / 1 days);
+        assertEq(
+            cps.secondStakeRate(),
+            cps.dailyStakeRate() / 1 days + (cps.dailyStakeRate() % 1 days)
+        );
     }
 
     function testCan_earnHalfDayRate() public {
