@@ -17,7 +17,7 @@ contract ChillPill is ERC721 {
     }
 }
 
-contract ContractTest is Test {
+contract ChillPillStakingTest is Test {
     ChillpillStaking cps;
     ChillPill erc721;
     ChillToken ct;
@@ -56,6 +56,16 @@ contract ContractTest is Test {
         tokensToStake[0] = 1;
         vm.expectRevert("not approved for transfer");
         cps.stake(tokensToStake);
+    }
+
+    function testCan_revertEarningInfoNotOwner() public {
+        erc721.mint();
+        uint256[] memory tokensToStake = new uint256[](1);
+        erc721.setApprovalForAll(address(cps), true);
+        tokensToStake[0] = 1;
+        cps.stake(tokensToStake);
+        vm.expectRevert("not an owner");
+        cps.earningInfo(address(1), tokensToStake);
     }
 
     function testCan_stakeApprovedToken() public {
@@ -167,6 +177,6 @@ contract ContractTest is Test {
         );
         cps.unstake(tokensToStake);
         assertTrue(ct.totalSupply() > cps.maxSupply() / 2);
-        // assertEq(cps.dailyStakeRate(), 8080000000000000000 / 2);
+        assertEq(cps.dailyStakeRate(), 8080000000000000000 / 2);
     }
 }
