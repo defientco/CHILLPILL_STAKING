@@ -26,6 +26,8 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     ChillToken public immutable chillToken;
     /// @notice max supply of $CHILL token
     uint256 public immutable maxSupply = 8080000000000000000000000;
+    /// @notice returns amount of $CHILL earned by staking 1 pill for 1 day
+    uint256 public dailyStakeRate = 8080000000000000000;
 
     // struct to store a stake's token, owner, and earning values
     struct Stake {
@@ -75,6 +77,8 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             });
         }
     }
+
+    function halvening() internal {}
 
     function _unstakeMany(address account, uint256[] calldata tokenIds)
         internal
@@ -144,14 +148,9 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         emit Claimed(account, earned);
     }
 
-    /// @notice returns amount of $CHILL earned by staking 1 pill for 1 day
-    function dailyStakeRate() public pure returns (uint256) {
-        return 8080000000000000000;
-    }
-
     /// @notice returns amount of $CHILL earned by staking 1 pill for 1 second
-    function secondStakeRate() public pure returns (uint256) {
-        return dailyStakeRate() / 1 days + (dailyStakeRate() % 1 days);
+    function secondStakeRate() public view returns (uint256) {
+        return dailyStakeRate / 1 days + (dailyStakeRate % 1 days);
     }
 
     function calculateEarn(uint256 stakedAt) internal view returns (uint256) {
