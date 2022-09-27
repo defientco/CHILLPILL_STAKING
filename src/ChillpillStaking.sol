@@ -27,7 +27,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     /// @notice max supply of $CHILL token
     uint256 public immutable maxSupply = 8080000000000000000000000;
     /// @notice returns amount of $CHILL earned by staking 1 pill for 1 day
-    uint256 public dailyStakeRate = 8080000000000000000;
+    uint256 public dailyStakeRate;
 
     // struct to store a stake's token, owner, and earning values
     struct Stake {
@@ -51,6 +51,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         chillToken = new ChillToken(address(this));
         nftAddress = _nft;
         totalNftSupply = _totalNftSupply;
+        dailyStakeRate = 8080000000000000000;
     }
 
     function stake(uint256[] calldata tokenIds) external nonReentrant {
