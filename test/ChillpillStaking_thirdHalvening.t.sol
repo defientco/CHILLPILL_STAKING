@@ -17,12 +17,13 @@ contract ChillPill is ERC721 {
     }
 }
 
-contract ChillPillStakingSecondHalveningTest is Test {
+contract ChillPillStakingThirdHalveningTest is Test {
     ChillpillStaking cps;
     ChillPill erc721;
     ChillToken ct;
     uint256 totalSupply = 9999;
     address owner = address(this);
+    uint256[] allPills = new uint256[](9999);
 
     function setUp() public {
         erc721 = new ChillPill();
@@ -34,32 +35,35 @@ contract ChillPillStakingSecondHalveningTest is Test {
         uint256[] memory tokensToStake = new uint256[](9999);
         for (uint256 i = 0; i < tokensToStake.length; i++) {
             erc721.mint();
-            tokensToStake[i] = i + 1;
+            allPills[i] = i + 1;
         }
         erc721.setApprovalForAll(address(cps), true);
-        cps.stake(tokensToStake);
+        cps.stake(allPills);
         // minimum days if all pills staked is 51 days till first halvening
-        vm.warp(51 days);
-        assertTrue(
-            cps.earningInfo(address(1), tokensToStake) > cps.maxSupply() / 2
-        );
-        cps.unstake(tokensToStake);
+        vm.warp(block.timestamp + 51 days);
+        assertTrue(cps.earningInfo(address(1), allPills) > cps.maxSupply() / 2);
+        cps.unstake(allPills);
 
         // 1 HALVENING => 2 HALVENING
-        cps.stake(tokensToStake);
+        cps.stake(allPills);
         vm.warp(block.timestamp + 51 days);
-        cps.unstake(tokensToStake);
+        cps.unstake(allPills);
 
-        assertTrue(ct.totalSupply() > (3 * cps.maxSupply()) / 4);
+        // 2 HALVENING => 3 HALVENING
+        cps.stake(allPills);
+        vm.warp(block.timestamp + 51 days);
+        cps.unstake(allPills);
+
+        assertTrue(ct.totalSupply() > (7 * cps.maxSupply()) / 8);
         vm.stopPrank();
     }
 
-    function testCan_secondHalvening() public {
-        assertEq(cps.halveningCount(), 2);
+    function testCan_thirdHalvening() public {
+        assertEq(cps.halveningCount(), 3);
     }
 
     function testCan_halveningDailyStakeRate() public {
-        assertEq(cps.dailyStakeRate(), 8080000000000000000 / 4);
+        assertEq(cps.dailyStakeRate(), 8080000000000000000 / 8);
     }
 
     function testCan_halveningSecondStakeRate() public {
@@ -69,7 +73,7 @@ contract ChillPillStakingSecondHalveningTest is Test {
         );
     }
 
-    function testCan_earn202ChillIn1Day() public {
+    function testCan_earn101ChillIn1Day() public {
         vm.startPrank(address(2));
         uint256[] memory tokensToStake = new uint256[](1);
         tokensToStake[0] = erc721.tokenId();
@@ -79,7 +83,7 @@ contract ChillPillStakingSecondHalveningTest is Test {
         vm.warp(block.timestamp + 1 days);
         assertEq(
             cps.earningInfo(address(2), tokensToStake),
-            2020000004700105600
+            1010000006082489600
         );
     }
 
@@ -99,35 +103,38 @@ contract ChillPillStakingSecondHalveningTest is Test {
 
     function testCan_stakeAllPills() public {
         vm.startPrank(address(1));
-        uint256[] memory tokensToStake = new uint256[](9999);
-        for (uint256 i = 0; i < tokensToStake.length; i++) {
-            tokensToStake[i] = i + 1;
-        }
-        cps.stake(tokensToStake);
-        assertEq(cps.stakedBalanceOf(address(1)), tokensToStake.length);
-        assertEq(cps.tokensOfOwner(address(1)).length, tokensToStake.length);
+        cps.stake(allPills);
+        assertEq(cps.stakedBalanceOf(address(1)), allPills.length);
+        assertEq(cps.tokensOfOwner(address(1)).length, allPills.length);
     }
 
-    function testCan_thirdHalvening() public {
+    function testCan_noFourthHalvening() public {
         vm.startPrank(address(1));
-        uint256[] memory tokensToStake = new uint256[](9999);
-        for (uint256 i = 0; i < tokensToStake.length; i++) {
-            tokensToStake[i] = i + 1;
-        }
-        cps.stake(tokensToStake);
+        cps.stake(allPills);
         // minimum days if all pills staked
-        // is 51 days till third halvening
+        // is 51 days till expected forth halvening
+        // note: only 3 halvenings
         vm.warp(block.timestamp + 50 days);
         assertFalse(
-            cps.earningInfo(address(1), tokensToStake) > cps.maxSupply() / 8
+            cps.earningInfo(address(1), allPills) > cps.maxSupply() / 16
         );
         vm.warp(block.timestamp + 1 days);
         assertTrue(
-            cps.earningInfo(address(1), tokensToStake) > cps.maxSupply() / 8
+            cps.earningInfo(address(1), allPills) > cps.maxSupply() / 16
         );
-        cps.unstake(tokensToStake);
-        assertTrue(ct.totalSupply() > (7 * cps.maxSupply()) / 8);
+        cps.unstake(allPills);
+        assertTrue(ct.totalSupply() > (15 * cps.maxSupply()) / 16);
         assertEq(cps.dailyStakeRate(), 8080000000000000000 / 8);
         assertEq(cps.halveningCount(), 3);
+    }
+
+    function testCan_mintAllChillTokens() public {
+        vm.startPrank(address(1));
+        cps.stake(allPills);
+        vm.warp(block.timestamp + 100 days);
+        cps.unstake(allPills);
+        assertEq(cps.dailyStakeRate(), 8080000000000000000 / 8);
+        assertEq(cps.halveningCount(), 3);
+        assertEq(ct.totalSupply(), cps.maxSupply());
     }
 }

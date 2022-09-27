@@ -82,8 +82,10 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     }
 
     function halvening() internal {
-        dailyStakeRate = dailyStakeRate / 2;
-        ++halveningCount;
+        if (halveningCount < 3) {
+            dailyStakeRate = dailyStakeRate / 2;
+            ++halveningCount;
+        }
     }
 
     function _unstakeMany(address account, uint256[] calldata tokenIds)
@@ -145,6 +147,9 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             });
         }
         if (earned > 0) {
+            if (earned + chillToken.totalSupply() > maxSupply) {
+                earned = maxSupply - chillToken.totalSupply();
+            }
             chillToken.mint(account, earned);
             totalClaimed += earned;
         }
