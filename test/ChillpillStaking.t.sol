@@ -17,17 +17,16 @@ contract ChillPill is ERC721 {
     }
 }
 
-contract ContractTest is Test {
+contract ChillPillStakingTest is Test {
     ChillpillStaking cps;
     ChillPill erc721;
     ChillToken ct;
-    uint256 vaultDuration = 100;
-    uint256 totalSupply = 100;
+    uint256 totalSupply = 9999;
     address owner = address(this);
 
     function setUp() public {
         erc721 = new ChillPill();
-        cps = new ChillpillStaking(address(erc721), vaultDuration, totalSupply);
+        cps = new ChillpillStaking(address(erc721), totalSupply);
         ct = cps.chillToken();
     }
 
@@ -35,8 +34,6 @@ contract ContractTest is Test {
         assertEq(cps.totalStaked(), 0);
         assertEq(cps.nftAddress(), address(erc721));
         assertEq(address(cps.chillToken()), address(ct));
-        assertEq(cps.vaultStart(), block.timestamp);
-        assertEq(cps.vaultEnd(), block.timestamp + (vaultDuration * 1 days));
         assertEq(cps.totalClaimed(), 0);
         assertEq(cps.totalNftSupply(), totalSupply);
         assertEq(cps.maxSupply(), 8080000000000000000000000);
@@ -59,6 +56,16 @@ contract ContractTest is Test {
         tokensToStake[0] = 1;
         vm.expectRevert("not approved for transfer");
         cps.stake(tokensToStake);
+    }
+
+    function testCan_revertEarningInfoNotOwner() public {
+        erc721.mint();
+        uint256[] memory tokensToStake = new uint256[](1);
+        erc721.setApprovalForAll(address(cps), true);
+        tokensToStake[0] = 1;
+        cps.stake(tokensToStake);
+        vm.expectRevert("not an owner");
+        cps.earningInfo(address(1), tokensToStake);
     }
 
     function testCan_stakeApprovedToken() public {
@@ -86,7 +93,7 @@ contract ContractTest is Test {
         vm.warp(block.timestamp + 1 days);
         assertEq(
             cps.earningInfo(address(this), tokensToStake),
-            cps.dailyStakeRate()
+            8080000003870675200
         );
     }
 
@@ -95,7 +102,10 @@ contract ContractTest is Test {
     }
 
     function testCan_secondStakeRate() public {
-        assertEq(cps.secondStakeRate(), cps.dailyStakeRate() / 1 days);
+        assertEq(
+            cps.secondStakeRate(),
+            cps.dailyStakeRate() / 1 days + (cps.dailyStakeRate() % 1 days)
+        );
     }
 
     function testCan_earnHalfDayRate() public {
@@ -109,5 +119,64 @@ contract ContractTest is Test {
             cps.earningInfo(address(this), tokensToStake),
             cps.secondStakeRate() * (1 days / 2)
         );
+    }
+
+    function testCan_stakeAllPills() public {
+        uint256[] memory tokensToStake = new uint256[](9999);
+        for (uint256 i = 0; i < tokensToStake.length; i++) {
+            erc721.mint();
+            tokensToStake[i] = i + 1;
+        }
+        erc721.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        assertEq(cps.stakedBalanceOf(address(this)), tokensToStake.length);
+        assertEq(cps.tokensOfOwner(address(this)).length, tokensToStake.length);
+    }
+
+    function testCan_unstake() public {
+        vm.startPrank(address(1));
+        uint256[] memory tokensToStake = new uint256[](1);
+        tokensToStake[0] = 1;
+        erc721.mint();
+        erc721.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        vm.warp(block.timestamp + 1 days);
+        assertEq(
+            cps.earningInfo(address(1), tokensToStake),
+            cps.secondStakeRate() * 1 days
+        );
+        cps.unstake(tokensToStake);
+        assertEq(ct.balanceOf(address(1)), cps.secondStakeRate() * 1 days);
+        assertEq(cps.stakedBalanceOf(address(1)), 0);
+        assertEq(ct.totalSupply(), cps.secondStakeRate() * 1 days);
+    }
+
+    function testCan_revertIfStakingContractReceivesNFT() public {
+        uint256[] memory tokensToStake = new uint256[](1);
+        erc721.mint();
+        tokensToStake[0] = 1;
+        erc721.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        vm.expectRevert("ERC721: transfer to non ERC721Receiver implementer");
+        cps.unstake(tokensToStake);
+    }
+
+    function testCan_firstHalvening() public {
+        vm.startPrank(address(1));
+        uint256[] memory tokensToStake = new uint256[](9999);
+        for (uint256 i = 0; i < tokensToStake.length; i++) {
+            erc721.mint();
+            tokensToStake[i] = i + 1;
+        }
+        erc721.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        // minimum days if all pills staked is 51 days till first halvening
+        vm.warp(51 days);
+        assertTrue(
+            cps.earningInfo(address(1), tokensToStake) > cps.maxSupply() / 2
+        );
+        cps.unstake(tokensToStake);
+        assertTrue(ct.totalSupply() > cps.maxSupply() / 2);
+        assertEq(cps.dailyStakeRate(), 8080000000000000000 / 2);
     }
 }

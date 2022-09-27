@@ -26,6 +26,10 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     ChillToken public immutable chillToken;
     /// @notice max supply of $CHILL token
     uint256 public immutable maxSupply = 8080000000000000000000000;
+    /// @notice returns amount of $CHILL earned by staking 1 pill for 1 day
+    uint256 public dailyStakeRate;
+    /// @notice number of $CHILL halvenings executed
+    uint8 public halveningCount;
 
     // struct to store a stake's token, owner, and earning values
     struct Stake {
@@ -39,24 +43,17 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     event Claimed(address owner, uint256 amount);
 
     address public nftAddress;
-    uint256 public vaultStart;
-    uint256 public vaultEnd;
     uint256 public totalClaimed;
     uint256 public totalNftSupply;
 
     // maps tokenId to stake
     mapping(uint256 => Stake) public vault;
 
-    constructor(
-        address _nft,
-        uint256 _vaultDuration,
-        uint256 _totalNftSupply
-    ) {
+    constructor(address _nft, uint256 _totalNftSupply) {
         chillToken = new ChillToken(address(this));
         nftAddress = _nft;
-        vaultStart = block.timestamp;
-        vaultEnd = vaultStart + (_vaultDuration * 1 days);
         totalNftSupply = _totalNftSupply;
+        dailyStakeRate = 8080000000000000000;
     }
 
     function stake(uint256[] calldata tokenIds) external nonReentrant {
@@ -79,8 +76,15 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             vault[tokenId] = Stake({
                 owner: msg.sender,
                 tokenId: uint24(tokenId),
-                timestamp: uint48(min(block.timestamp, vaultEnd))
+                timestamp: uint48(block.timestamp)
             });
+        }
+    }
+
+    function halvening() internal {
+        if (halveningCount < 3) {
+            dailyStakeRate = dailyStakeRate / 2;
+            ++halveningCount;
         }
     }
 
@@ -132,7 +136,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             Stake memory staked = vault[tokenId];
             require(staked.owner == account, "not an owner");
             uint256 stakedAt = staked.timestamp;
-            uint256 currentTime = min(block.timestamp, vaultEnd);
+            uint256 currentTime = block.timestamp;
 
             earned += calculateEarn(stakedAt);
 
@@ -143,8 +147,14 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             });
         }
         if (earned > 0) {
+            if (earned + chillToken.totalSupply() > maxSupply) {
+                earned = maxSupply - chillToken.totalSupply();
+            }
             chillToken.mint(account, earned);
             totalClaimed += earned;
+        }
+        if (chillToken.totalSupply() > maxSupply / (2 * (halveningCount + 1))) {
+            halvening();
         }
         if (_unstake) {
             _unstakeMany(account, tokenIds);
@@ -152,26 +162,14 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         emit Claimed(account, earned);
     }
 
-    /// @notice returns amount of $CHILL earned by staking 1 pill for 1 day
-    function dailyStakeRate() public pure returns (uint256) {
-        return 8080000000000000000;
-    }
-
     /// @notice returns amount of $CHILL earned by staking 1 pill for 1 second
-    function secondStakeRate() public pure returns (uint256) {
-        return dailyStakeRate() / 1 days;
+    function secondStakeRate() public view returns (uint256) {
+        return dailyStakeRate / 1 days + (dailyStakeRate % 1 days);
     }
 
     function calculateEarn(uint256 stakedAt) internal view returns (uint256) {
         uint256 stakeDuration = block.timestamp - stakedAt;
-        uint256 payout;
-        if (stakeDuration >= 1 days) {
-            uint256 numberOfDaysStaked = stakeDuration / 1 days;
-            payout = numberOfDaysStaked * dailyStakeRate();
-            stakeDuration = stakeDuration - numberOfDaysStaked * 1 days;
-        }
-        payout += (stakeDuration) * secondStakeRate();
-
+        uint256 payout = stakeDuration * secondStakeRate();
         return payout;
     }
 
@@ -193,7 +191,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return earned;
     }
 
-    // get number of tokens staked in account
+    /// @notice get number of tokens staked in account
     function stakedBalanceOf(address account) external view returns (uint256) {
         uint256 balance = 0;
 
@@ -205,7 +203,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return balance;
     }
 
-    // return nft tokens staked of owner
+    /// @notice return nft tokens staked of owner
     function tokensOfOwner(address account)
         external
         view
@@ -227,10 +225,6 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         }
 
         return tokens;
-    }
-
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a >= b ? b : a;
     }
 
     function onERC721Received(
