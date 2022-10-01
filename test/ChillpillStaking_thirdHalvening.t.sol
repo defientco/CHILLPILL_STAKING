@@ -104,7 +104,7 @@ contract ChillPillStakingThirdHalveningTest is Test {
     function testCan_stakeAllPills() public {
         vm.startPrank(address(1));
         cps.stake(allPills);
-        assertEq(cps.stakedBalanceOf(address(1)), allPills.length);
+        assertEq(cps.balanceOf(address(1)), allPills.length);
         assertEq(cps.tokensOfOwner(address(1)).length, allPills.length);
     }
 

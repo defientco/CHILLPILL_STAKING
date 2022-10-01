@@ -39,6 +39,11 @@ contract ChillPillStakingTest is Test {
         assertEq(cps.maxSupply(), 8080000000000000000000000);
     }
 
+    function testCan_decentSdkCompatible() public {
+        assertEq(cps.erc20Address(), address(ct));
+        assertEq(cps.balanceOf(msg.sender), 0);
+    }
+
     function testCan_haveVaultBalanceOfZero() public {
         assertEq(erc721.balanceOf(owner), 0);
     }
@@ -129,7 +134,7 @@ contract ChillPillStakingTest is Test {
         }
         erc721.setApprovalForAll(address(cps), true);
         cps.stake(tokensToStake);
-        assertEq(cps.stakedBalanceOf(address(this)), tokensToStake.length);
+        assertEq(cps.balanceOf(address(this)), tokensToStake.length);
         assertEq(cps.tokensOfOwner(address(this)).length, tokensToStake.length);
     }
 
@@ -147,7 +152,7 @@ contract ChillPillStakingTest is Test {
         );
         cps.unstake(tokensToStake);
         assertEq(ct.balanceOf(address(1)), cps.secondStakeRate() * 1 days);
-        assertEq(cps.stakedBalanceOf(address(1)), 0);
+        assertEq(cps.balanceOf(address(1)), 0);
         assertEq(ct.totalSupply(), cps.secondStakeRate() * 1 days);
     }
 
