@@ -39,6 +39,10 @@ contract ChillPillStakingTest is Test {
         assertEq(cps.maxSupply(), 8080000000000000000000000);
     }
 
+    function testCan_decentSdkCompatible() public {
+        assertEq(cps.erc20Address(), address(ct));
+    }
+
     function testCan_haveVaultBalanceOfZero() public {
         assertEq(erc721.balanceOf(owner), 0);
     }

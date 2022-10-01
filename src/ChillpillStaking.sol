@@ -238,6 +238,11 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    /// @notice erc20Address for DecentSDK compatibility
+    function erc20Address() public view returns (address) {
+        return address(chillToken);
+    }
+
     // fallback
     fallback() external payable {}
 
