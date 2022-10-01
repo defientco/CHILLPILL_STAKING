@@ -192,7 +192,8 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     }
 
     /// @notice get number of tokens staked in account
-    function stakedBalanceOf(address account) external view returns (uint256) {
+    /// @dev DecentSDK compatible
+    function balanceOf(address account) external view returns (uint256) {
         uint256 balance = 0;
 
         for (uint256 i = 0; i <= totalNftSupply; i++) {
@@ -238,7 +239,8 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    /// @notice erc20Address for DecentSDK compatibility
+    /// @notice erc20Address for $CHILL token
+    /// @dev DecentSDK compatibility
     function erc20Address() public view returns (address) {
         return address(chillToken);
     }

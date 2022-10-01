@@ -104,7 +104,7 @@ contract ChillPillStakingSecondHalveningTest is Test {
             tokensToStake[i] = i + 1;
         }
         cps.stake(tokensToStake);
-        assertEq(cps.stakedBalanceOf(address(1)), tokensToStake.length);
+        assertEq(cps.balanceOf(address(1)), tokensToStake.length);
         assertEq(cps.tokensOfOwner(address(1)).length, tokensToStake.length);
     }
 
