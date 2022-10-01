@@ -18,7 +18,7 @@ import "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 contract ChillToken is ERC20 {
     /// @notice address permissioned to mint new $CHILL tokens
-    address public minter;
+    address public immutable minter;
 
     constructor(address _minter) ERC20("CHILL", "CHILL") {
         minter = _minter;
