@@ -78,6 +78,23 @@ contract ChillpillStaking is
         _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
     }
 
+    /// @notice transfer pill from staking contract to owner
+    function _unstakeTransfer(uint256 _tokenId, address _account) private {
+        if (_tokenId > partyPillStartIndex) {
+            IERC721(partyPillAddress).safeTransferFrom(
+                address(this),
+                _account,
+                _tokenId - partyPillStartIndex
+            );
+        } else {
+            IERC721(nftAddress).safeTransferFrom(
+                address(this),
+                _account,
+                _tokenId
+            );
+        }
+    }
+
     /// @notice stake you pills
     function stake(uint256[] calldata tokenIds) external nonReentrant {
         uint256 tokenId;
@@ -125,11 +142,7 @@ contract ChillpillStaking is
 
             delete vault[tokenId];
             emit NFTUnstaked(account, tokenId, block.timestamp);
-            IERC721(nftAddress).safeTransferFrom(
-                address(this),
-                account,
-                tokenId
-            );
+            _unstakeTransfer(tokenId, account);
         }
     }
 

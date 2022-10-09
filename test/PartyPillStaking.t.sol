@@ -142,7 +142,24 @@ contract PartyPillStakingTest is Test {
         pp.setApprovalForAll(address(cps), true);
         cps.stake(tokensToStake);
         vm.warp(block.timestamp + 1 days);
+        assertEq(ct.balanceOf(address(this)), 0);
         cps.claim(tokensToStake);
         assertEq(ct.balanceOf(address(this)), 24240000011612025600);
+    }
+
+    function testCan_unstake() public {
+        setupPartyPills();
+        address tokenOwner = address(1);
+        vm.startPrank(tokenOwner);
+        pp.mint();
+        uint256[] memory tokensToStake = new uint256[](1);
+        tokensToStake[0] = 1 + offset;
+        pp.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        vm.warp(block.timestamp + 1 days);
+        assertEq(ct.balanceOf(tokenOwner), 0);
+        cps.unstake(tokensToStake);
+        assertEq(ct.balanceOf(tokenOwner), 24240000011612025600);
+        assertEq(pp.balanceOf(tokenOwner), 1);
     }
 }
