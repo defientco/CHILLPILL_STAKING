@@ -54,6 +54,7 @@ contract PartyPillStakingTest is Test {
 
     function setupPartyPills() private {
         cps.updatePartyPill(address(pp), 3, 5000);
+        cps.renounceOwnership();
     }
 
     function testCan_initVariables() public {
