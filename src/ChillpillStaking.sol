@@ -43,12 +43,18 @@ contract ChillpillStaking is
         address owner;
     }
 
+    /// @notice event fired when NFT is staked
     event NFTStaked(address owner, uint256 tokenId, uint256 value);
+    /// @notice event fired when NFT is unstaked
     event NFTUnstaked(address owner, uint256 tokenId, uint256 value);
+    /// @notice event fired when $CHILL is claimed
     event Claimed(address owner, uint256 amount);
 
+    /// @notice address of ChillRx ERC721 contract
     address public nftAddress;
+    /// @notice amount of $CHILL claimed
     uint256 public totalClaimed;
+    /// @notice total amount of ChillRx + PartyPills
     uint256 public totalNftSupply;
 
     // maps tokenId to stake
@@ -61,6 +67,7 @@ contract ChillpillStaking is
         dailyStakeRate = 8080000000000000000;
     }
 
+    /// @notice transfer pill to staking contract
     function _stakeTransfer(IERC721 _nft, uint256 _tokenId) private {
         require(_nft.ownerOf(_tokenId) == msg.sender, "not your token");
         require(
@@ -97,6 +104,7 @@ contract ChillpillStaking is
         }
     }
 
+    /// @notice cut distribution of $CHILL in half
     function halvening() internal {
         if (halveningCount < 3) {
             dailyStakeRate = dailyStakeRate / 2;
@@ -104,6 +112,7 @@ contract ChillpillStaking is
         }
     }
 
+    /// @notice unstake pills
     function _unstakeMany(address account, uint256[] calldata tokenIds)
         internal
     {
@@ -124,10 +133,12 @@ contract ChillpillStaking is
         }
     }
 
+    /// @notice claim $CHILL for self
     function claim(uint256[] calldata tokenIds) external nonReentrant {
         _claim(msg.sender, tokenIds, false);
     }
 
+    /// @notice claim $CHILL for target address
     function claimForAddress(address account, uint256[] calldata tokenIds)
         external
         nonReentrant
@@ -135,10 +146,12 @@ contract ChillpillStaking is
         _claim(account, tokenIds, false);
     }
 
+    /// @notice claim $CHILL and unstake Pill
     function unstake(uint256[] calldata tokenIds) external nonReentrant {
         _claim(msg.sender, tokenIds, true);
     }
 
+    /// @notice claim $CHILL and unstake Pill (optional)
     function _claim(
         address account,
         uint256[] calldata tokenIds,
@@ -183,12 +196,14 @@ contract ChillpillStaking is
         return dailyStakeRate / 1 days + (dailyStakeRate % 1 days);
     }
 
+    /// @notice calculate amount of unclaimed $CHILL
     function calculateEarn(uint256 stakedAt) internal view returns (uint256) {
         uint256 stakeDuration = block.timestamp - stakedAt;
         uint256 payout = stakeDuration * secondStakeRate();
         return payout;
     }
 
+    /// @notice amount of unclaimed $CHILL
     function earningInfo(address account, uint256[] calldata tokenIds)
         external
         view
@@ -244,6 +259,7 @@ contract ChillpillStaking is
         return tokens;
     }
 
+    /// @notice handles reciept of ERC721 tokens
     function onERC721Received(
         address,
         address,
