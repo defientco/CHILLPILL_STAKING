@@ -217,7 +217,11 @@ contract ChillpillStaking is
             Stake memory staked = vault[tokenId];
             require(staked.owner == account, "not an owner");
             uint256 stakedAt = staked.timestamp;
-            earned += calculateEarn(stakedAt);
+            if (tokenId > partyPillStartIndex) {
+                earned += calculateEarn(stakedAt) * partyPillMultiplier;
+            } else {
+                earned += calculateEarn(stakedAt);
+            }
         }
         return earned;
     }

@@ -119,4 +119,18 @@ contract PartyPillStakingTest is Test {
         }
         assertEq(cps.balanceOf(address(this)), cps.partyPillCount());
     }
+
+    function testCan_earnMultiplier() public {
+        setupPartyPills();
+        pp.mint();
+        uint256[] memory tokensToStake = new uint256[](1);
+        tokensToStake[0] = 1 + offset;
+        pp.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        vm.warp(block.timestamp + 1 days);
+        assertEq(
+            cps.earningInfo(address(this), tokensToStake),
+            24240000011612025600
+        );
+    }
 }
