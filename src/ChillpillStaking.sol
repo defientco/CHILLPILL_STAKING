@@ -61,21 +61,32 @@ contract ChillpillStaking is
         dailyStakeRate = 8080000000000000000;
     }
 
+    function _stakeTransfer(IERC721 _nft, uint256 _tokenId) private {
+        require(_nft.ownerOf(_tokenId) == msg.sender, "not your token");
+        require(
+            _nft.isApprovedForAll(msg.sender, address(this)) ||
+                _nft.getApproved(_tokenId) == address(this),
+            "not approved for transfer"
+        );
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+    }
+
+    /// @notice stake you pills
     function stake(uint256[] calldata tokenIds) external nonReentrant {
         uint256 tokenId;
         totalStaked += tokenIds.length;
         IERC721 _nft = IERC721(nftAddress);
+        IERC721 _partyPill = IERC721(partyPillAddress);
         for (uint256 i; i != tokenIds.length; i++) {
             tokenId = tokenIds[i];
             require(vault[tokenId].owner == address(0), "already staked");
-            require(_nft.ownerOf(tokenId) == msg.sender, "not your token");
-            require(
-                _nft.isApprovedForAll(msg.sender, address(this)) ||
-                    _nft.getApproved(tokenId) == address(this),
-                "not approved for transfer"
-            );
+            if (tokenIds[i] > partyPillStartIndex) {
+                uint256 _tokenId = tokenId - partyPillStartIndex;
+                _stakeTransfer(_partyPill, _tokenId);
+            } else {
+                _stakeTransfer(_nft, tokenIds[i]);
+            }
 
-            _nft.safeTransferFrom(msg.sender, address(this), tokenId);
             emit NFTStaked(msg.sender, tokenId, block.timestamp);
 
             vault[tokenId] = Stake({
@@ -248,6 +259,16 @@ contract ChillpillStaking is
     /// @dev DecentSDK compatibility
     function erc20Address() public view returns (address) {
         return address(chillToken);
+    }
+
+    /// @notice updates party pill information
+    function updatePartyPill(
+        address _partyPillAddress,
+        uint8 _stakeMultiplier,
+        uint256 _count
+    ) public onlyOwner {
+        totalNftSupply = totalNftSupply - partyPillCount + _count;
+        _updatePartyPill(_partyPillAddress, _stakeMultiplier, _count);
     }
 
     // fallback
