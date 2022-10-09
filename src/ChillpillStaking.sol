@@ -167,7 +167,11 @@ contract ChillpillStaking is
             uint256 stakedAt = staked.timestamp;
             uint256 currentTime = block.timestamp;
 
-            earned += calculateEarn(stakedAt);
+            if (tokenId > partyPillStartIndex) {
+                earned += calculateEarn(stakedAt) * partyPillMultiplier;
+            } else {
+                earned += calculateEarn(stakedAt);
+            }
 
             vault[tokenId] = Stake({
                 owner: account,

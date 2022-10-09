@@ -133,4 +133,16 @@ contract PartyPillStakingTest is Test {
             24240000011612025600
         );
     }
+
+    function testCan_claim() public {
+        setupPartyPills();
+        pp.mint();
+        uint256[] memory tokensToStake = new uint256[](1);
+        tokensToStake[0] = 1 + offset;
+        pp.setApprovalForAll(address(cps), true);
+        cps.stake(tokensToStake);
+        vm.warp(block.timestamp + 1 days);
+        cps.claim(tokensToStake);
+        assertEq(ct.balanceOf(address(this)), 24240000011612025600);
+    }
 }
