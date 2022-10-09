@@ -227,7 +227,7 @@ contract ChillpillStaking is
     function balanceOf(address account) external view returns (uint256) {
         uint256 balance = 0;
 
-        for (uint256 i = 0; i <= totalNftSupply; i++) {
+        for (uint256 i = 0; i <= totalNftSupply + 1; i++) {
             if (vault[i].owner == account) {
                 balance++;
             }
@@ -244,7 +244,7 @@ contract ChillpillStaking is
         uint256[] memory tmp = new uint256[](totalNftSupply);
 
         uint256 index = 0;
-        for (uint256 tokenId = 0; tokenId <= totalNftSupply; tokenId++) {
+        for (uint256 tokenId = 0; tokenId <= totalNftSupply + 1; tokenId++) {
             if (vault[tokenId].owner == account) {
                 tmp[index] = vault[tokenId].tokenId;
                 index++;
