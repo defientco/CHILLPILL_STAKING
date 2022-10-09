@@ -15,11 +15,16 @@ pragma solidity ^0.8.15;
 /// ============ Imports ============
 
 import "./ChillToken.sol";
+import "./PartyPillStaking.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
+contract ChillpillStaking is
+    PartyPillStaking,
+    ReentrancyGuard,
+    IERC721Receiver
+{
     /// @notice total count of staked chillpill nfts
     uint256 public totalStaked;
     /// @notice $CHILL Token
