@@ -15,11 +15,16 @@ pragma solidity ^0.8.15;
 /// ============ Imports ============
 
 import "./ChillToken.sol";
+import "./PartyPillStaking.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721.sol";
 import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
+contract ChillpillStaking is
+    PartyPillStaking,
+    ReentrancyGuard,
+    IERC721Receiver
+{
     /// @notice total count of staked chillpill nfts
     uint256 public totalStaked;
     /// @notice $CHILL Token
@@ -38,12 +43,18 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         address owner;
     }
 
+    /// @notice event fired when NFT is staked
     event NFTStaked(address owner, uint256 tokenId, uint256 value);
+    /// @notice event fired when NFT is unstaked
     event NFTUnstaked(address owner, uint256 tokenId, uint256 value);
+    /// @notice event fired when $CHILL is claimed
     event Claimed(address owner, uint256 amount);
 
+    /// @notice address of ChillRx ERC721 contract
     address public nftAddress;
+    /// @notice amount of $CHILL claimed
     uint256 public totalClaimed;
+    /// @notice total amount of ChillRx + PartyPills
     uint256 public totalNftSupply;
 
     // maps tokenId to stake
@@ -56,21 +67,50 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         dailyStakeRate = 8080000000000000000;
     }
 
+    /// @notice transfer pill to staking contract
+    function _stakeTransfer(IERC721 _nft, uint256 _tokenId) private {
+        require(_nft.ownerOf(_tokenId) == msg.sender, "not your token");
+        require(
+            _nft.isApprovedForAll(msg.sender, address(this)) ||
+                _nft.getApproved(_tokenId) == address(this),
+            "not approved for transfer"
+        );
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+    }
+
+    /// @notice transfer pill from staking contract to owner
+    function _unstakeTransfer(uint256 _tokenId, address _account) private {
+        if (_tokenId > partyPillStartIndex) {
+            IERC721(partyPillAddress).safeTransferFrom(
+                address(this),
+                _account,
+                _tokenId - partyPillStartIndex
+            );
+        } else {
+            IERC721(nftAddress).safeTransferFrom(
+                address(this),
+                _account,
+                _tokenId
+            );
+        }
+    }
+
+    /// @notice stake you pills
     function stake(uint256[] calldata tokenIds) external nonReentrant {
         uint256 tokenId;
         totalStaked += tokenIds.length;
         IERC721 _nft = IERC721(nftAddress);
+        IERC721 _partyPill = IERC721(partyPillAddress);
         for (uint256 i; i != tokenIds.length; i++) {
             tokenId = tokenIds[i];
             require(vault[tokenId].owner == address(0), "already staked");
-            require(_nft.ownerOf(tokenId) == msg.sender, "not your token");
-            require(
-                _nft.isApprovedForAll(msg.sender, address(this)) ||
-                    _nft.getApproved(tokenId) == address(this),
-                "not approved for transfer"
-            );
+            if (tokenIds[i] > partyPillStartIndex) {
+                uint256 _tokenId = tokenId - partyPillStartIndex;
+                _stakeTransfer(_partyPill, _tokenId);
+            } else {
+                _stakeTransfer(_nft, tokenIds[i]);
+            }
 
-            _nft.safeTransferFrom(msg.sender, address(this), tokenId);
             emit NFTStaked(msg.sender, tokenId, block.timestamp);
 
             vault[tokenId] = Stake({
@@ -81,6 +121,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         }
     }
 
+    /// @notice cut distribution of $CHILL in half
     function halvening() internal {
         if (halveningCount < 3) {
             dailyStakeRate = dailyStakeRate / 2;
@@ -88,6 +129,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         }
     }
 
+    /// @notice unstake pills
     function _unstakeMany(address account, uint256[] calldata tokenIds)
         internal
     {
@@ -100,18 +142,16 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
 
             delete vault[tokenId];
             emit NFTUnstaked(account, tokenId, block.timestamp);
-            IERC721(nftAddress).safeTransferFrom(
-                address(this),
-                account,
-                tokenId
-            );
+            _unstakeTransfer(tokenId, account);
         }
     }
 
+    /// @notice claim $CHILL for self
     function claim(uint256[] calldata tokenIds) external nonReentrant {
         _claim(msg.sender, tokenIds, false);
     }
 
+    /// @notice claim $CHILL for target address
     function claimForAddress(address account, uint256[] calldata tokenIds)
         external
         nonReentrant
@@ -119,10 +159,12 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         _claim(account, tokenIds, false);
     }
 
+    /// @notice claim $CHILL and unstake Pill
     function unstake(uint256[] calldata tokenIds) external nonReentrant {
         _claim(msg.sender, tokenIds, true);
     }
 
+    /// @notice claim $CHILL and unstake Pill (optional)
     function _claim(
         address account,
         uint256[] calldata tokenIds,
@@ -138,7 +180,11 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             uint256 stakedAt = staked.timestamp;
             uint256 currentTime = block.timestamp;
 
-            earned += calculateEarn(stakedAt);
+            if (tokenId > partyPillStartIndex) {
+                earned += calculateEarn(stakedAt) * partyPillMultiplier;
+            } else {
+                earned += calculateEarn(stakedAt);
+            }
 
             vault[tokenId] = Stake({
                 owner: account,
@@ -167,12 +213,14 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return dailyStakeRate / 1 days + (dailyStakeRate % 1 days);
     }
 
+    /// @notice calculate amount of unclaimed $CHILL
     function calculateEarn(uint256 stakedAt) internal view returns (uint256) {
         uint256 stakeDuration = block.timestamp - stakedAt;
         uint256 payout = stakeDuration * secondStakeRate();
         return payout;
     }
 
+    /// @notice amount of unclaimed $CHILL
     function earningInfo(address account, uint256[] calldata tokenIds)
         external
         view
@@ -186,7 +234,11 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
             Stake memory staked = vault[tokenId];
             require(staked.owner == account, "not an owner");
             uint256 stakedAt = staked.timestamp;
-            earned += calculateEarn(stakedAt);
+            if (tokenId > partyPillStartIndex) {
+                earned += calculateEarn(stakedAt) * partyPillMultiplier;
+            } else {
+                earned += calculateEarn(stakedAt);
+            }
         }
         return earned;
     }
@@ -196,7 +248,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     function balanceOf(address account) external view returns (uint256) {
         uint256 balance = 0;
 
-        for (uint256 i = 0; i <= totalNftSupply; i++) {
+        for (uint256 i = 0; i <= totalNftSupply + 1; i++) {
             if (vault[i].owner == account) {
                 balance++;
             }
@@ -213,7 +265,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         uint256[] memory tmp = new uint256[](totalNftSupply);
 
         uint256 index = 0;
-        for (uint256 tokenId = 0; tokenId <= totalNftSupply; tokenId++) {
+        for (uint256 tokenId = 0; tokenId <= totalNftSupply + 1; tokenId++) {
             if (vault[tokenId].owner == account) {
                 tmp[index] = vault[tokenId].tokenId;
                 index++;
@@ -228,6 +280,7 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
         return tokens;
     }
 
+    /// @notice handles reciept of ERC721 tokens
     function onERC721Received(
         address,
         address,
@@ -243,6 +296,16 @@ contract ChillpillStaking is ReentrancyGuard, IERC721Receiver {
     /// @dev DecentSDK compatibility
     function erc20Address() public view returns (address) {
         return address(chillToken);
+    }
+
+    /// @notice updates party pill information
+    function updatePartyPill(
+        address _partyPillAddress,
+        uint8 _stakeMultiplier,
+        uint256 _count
+    ) public onlyOwner {
+        totalNftSupply = totalNftSupply - partyPillCount + _count;
+        _updatePartyPill(_partyPillAddress, _stakeMultiplier, _count);
     }
 
     // fallback
