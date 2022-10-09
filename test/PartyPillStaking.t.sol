@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import "src/ChillpillStaking.sol";
 import "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import "openzeppelin-contracts/token/ERC20/ERC20.sol";
-import "../src/lib/ChillStructs.sol";
 
 contract ChillPill is ERC721 {
     uint256 tokenId = 1;
@@ -29,7 +28,7 @@ contract PartyPills is ERC721 {
     }
 }
 
-contract PartyPillStakingTest is Test, ChillStructs {
+contract PartyPillStakingTest is Test {
     ChillpillStaking cps;
     ChillPill erc721;
     ChillToken ct;
@@ -66,10 +65,22 @@ contract PartyPillStakingTest is Test, ChillStructs {
     }
 
     function testCan_updatePartyPill() public {
-        cps.updatePartyPill(address(1), 3, 5000);
+        uint256 _supply = cps.totalNftSupply();
+        uint256 _partySupply = 5000;
+        cps.updatePartyPill(address(1), 3, _partySupply);
         assertEq(cps.partyPillAddress(), address(1));
         assertEq(cps.partyPillMultiplier(), 3);
-        assertEq(cps.partyPillCount(), 5000);
+        assertEq(cps.partyPillCount(), _partySupply);
+        assertEq(cps.totalNftSupply(), _partySupply + _supply);
+    }
+
+    function testCan_updateSupplyMultipleTimes() public {
+        uint256 _supply = cps.totalNftSupply();
+        for (uint256 i = 500; i < 10000; i++) {
+            cps.updatePartyPill(address(1), 3, i);
+            assertEq(cps.partyPillCount(), i);
+            assertEq(cps.totalNftSupply(), i + _supply);
+        }
     }
 
     function testCan_revertNonOwnerUpdatePartyPill() public {
